@@ -3,12 +3,31 @@ import Cookies from "js-cookie";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8090";
 
+// Keep an in-memory copy of the token so it is always available
+// even if js-cookie fails to read the cookie (path / timing issues).
+let _token: string | null =
+  (typeof document !== "undefined" ? Cookies.get("token") : null) || null;
+
+function getToken(): string | undefined {
+  return _token || Cookies.get("token") || undefined;
+}
+
+function setToken(token: string) {
+  _token = token;
+  Cookies.set("token", token, { expires: 1, path: "/" });
+}
+
+function clearToken() {
+  _token = null;
+  Cookies.remove("token", { path: "/" });
+}
+
 const api = axios.create({
   baseURL: API_URL,
 });
 
 api.interceptors.request.use((config) => {
-  const token = Cookies.get("token");
+  const token = getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -20,7 +39,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      Cookies.remove("token", { path: "/" });
+      clearToken();
     }
     return Promise.reject(error);
   }
@@ -67,16 +86,16 @@ export async function login(
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
   });
   const token = res.data.access_token;
-  Cookies.set("token", token, { expires: 1, path: "/" });
+  setToken(token);
   return token;
 }
 
 export function logout() {
-  Cookies.remove("token", { path: "/" });
+  clearToken();
 }
 
 export function isLoggedIn(): boolean {
-  return !!Cookies.get("token");
+  return !!getToken();
 }
 
 export async function getPhotos(category?: string): Promise<Photo[]> {
