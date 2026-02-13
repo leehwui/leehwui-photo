@@ -71,6 +71,12 @@ const dictionaries = {
     "admin.confirmDeleteCat": "Delete category",
     "admin.catCreateFailed": "Failed to create category.",
     "admin.catDeleteFailed": "Failed to delete category.",
+    "admin.catUpdateFailed": "Failed to update category.",
+    "admin.catReorderFailed": "Failed to reorder categories.",
+    "admin.dragToReorder": "Drag to reorder",
+    "admin.editCategory": "Edit Category",
+    "admin.filterByCategory": "Filter",
+    "admin.allCategories": "All",
 
     // Admin - Settings
     "admin.siteSettings": "Site Settings",
@@ -152,6 +158,12 @@ const dictionaries = {
     "admin.confirmDeleteCat": "删除分类",
     "admin.catCreateFailed": "创建分类失败。",
     "admin.catDeleteFailed": "删除分类失败。",
+    "admin.catUpdateFailed": "更新分类失败。",
+    "admin.catReorderFailed": "排序分类失败。",
+    "admin.dragToReorder": "拖拽排序",
+    "admin.editCategory": "编辑分类",
+    "admin.filterByCategory": "筛选",
+    "admin.allCategories": "全部",
 
     // Admin - Settings
     "admin.siteSettings": "站点设置",

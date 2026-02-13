@@ -94,6 +94,15 @@ class CategoryCreate(BaseModel):
     display_name: Optional[str] = None
 
 
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    display_name: Optional[str] = None
+
+
+class CategoryReorder(BaseModel):
+    ids: List[str]  # ordered list of category IDs
+
+
 class SiteSettingsOut(BaseModel):
     site_title: str = "TANGERINE"
     site_subtitle: str = ""
@@ -293,6 +302,45 @@ def delete_category(
     db.delete(cat)
     db.commit()
     return {"message": "deleted"}
+
+
+@app.put("/api/categories/reorder")
+def reorder_categories(
+    body: CategoryReorder,
+    _user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    for index, cat_id in enumerate(body.ids):
+        cat = db.query(Category).filter_by(id=cat_id).first()
+        if cat:
+            cat.sort_order = index
+    db.commit()
+    return {"message": "reordered"}
+
+
+@app.put("/api/categories/{category_id}", response_model=CategoryOut)
+def update_category(
+    category_id: str,
+    body: CategoryUpdate,
+    _user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    cat = db.query(Category).filter_by(id=category_id).first()
+    if not cat:
+        raise HTTPException(status_code=404, detail="Category not found")
+    if body.name is not None:
+        # Check unique
+        existing = db.query(Category).filter(
+            Category.name == body.name, Category.id != category_id
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Category name already exists")
+        cat.name = body.name
+    if body.display_name is not None:
+        cat.display_name = body.display_name
+    db.commit()
+    db.refresh(cat)
+    return cat
 
 
 # ---------------------------------------------------------------------------

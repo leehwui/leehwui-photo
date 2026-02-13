@@ -16,6 +16,8 @@ import {
   updateSettings,
   createCategory,
   deleteCategory,
+  updateCategory,
+  reorderCategories,
   Photo,
   Category,
   SiteSettings,
@@ -58,6 +60,18 @@ export default function AdminPage() {
   // Category form
   const [newCatName, setNewCatName] = useState("");
   const [newCatDisplay, setNewCatDisplay] = useState("");
+
+  // Category editing
+  const [editingCat, setEditingCat] = useState<Category | null>(null);
+  const [editCatName, setEditCatName] = useState("");
+  const [editCatDisplay, setEditCatDisplay] = useState("");
+
+  // Category drag reorder
+  const [dragCatId, setDragCatId] = useState<string | null>(null);
+  const [dragOverCatId, setDragOverCatId] = useState<string | null>(null);
+
+  // Photo category filter
+  const [filterCategory, setFilterCategory] = useState("");
 
   // Edit modal
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
@@ -295,6 +309,89 @@ export default function AdminPage() {
       alert(t("admin.catDeleteFailed"));
     }
   }
+
+  /* ── Category edit ── */
+  function openEditCat(cat: Category) {
+    setEditingCat(cat);
+    setEditCatName(cat.name);
+    setEditCatDisplay(cat.display_name || "");
+  }
+
+  function closeEditCat() {
+    setEditingCat(null);
+    setEditCatName("");
+    setEditCatDisplay("");
+  }
+
+  async function handleSaveEditCat() {
+    if (!editingCat) return;
+    try {
+      await updateCategory(editingCat.id, {
+        name: editCatName.trim(),
+        display_name: editCatDisplay.trim() || undefined,
+      });
+      closeEditCat();
+      loadData();
+    } catch (err) {
+      console.error("Failed to update category:", err);
+      alert(t("admin.catUpdateFailed"));
+    }
+  }
+
+  /* ── Category drag-to-reorder ── */
+  function handleCatDragStart(catId: string) {
+    setDragCatId(catId);
+  }
+
+  function handleCatDragOver(e: React.DragEvent, catId: string) {
+    e.preventDefault();
+    if (catId !== dragCatId) {
+      setDragOverCatId(catId);
+    }
+  }
+
+  function handleCatDragLeaveRow() {
+    setDragOverCatId(null);
+  }
+
+  async function handleCatDrop(targetCatId: string) {
+    setDragOverCatId(null);
+    if (!dragCatId || dragCatId === targetCatId) {
+      setDragCatId(null);
+      return;
+    }
+    // Reorder locally first
+    const ordered = [...categories];
+    const fromIdx = ordered.findIndex((c) => c.id === dragCatId);
+    const toIdx = ordered.findIndex((c) => c.id === targetCatId);
+    if (fromIdx === -1 || toIdx === -1) {
+      setDragCatId(null);
+      return;
+    }
+    const [moved] = ordered.splice(fromIdx, 1);
+    ordered.splice(toIdx, 0, moved);
+    setCategories(ordered);
+    setDragCatId(null);
+
+    // Persist to backend
+    try {
+      await reorderCategories(ordered.map((c) => c.id));
+    } catch (err) {
+      console.error("Failed to reorder categories:", err);
+      alert(t("admin.catReorderFailed"));
+      loadData(); // revert
+    }
+  }
+
+  function handleCatDragEnd() {
+    setDragCatId(null);
+    setDragOverCatId(null);
+  }
+
+  /* ── Filtered photos ── */
+  const filteredPhotos = filterCategory
+    ? photos.filter((p) => p.category === filterCategory)
+    : photos;
 
   /* ── Settings ── */
   async function handleSaveSettings(e: React.FormEvent) {
@@ -593,28 +690,51 @@ export default function AdminPage() {
             <section className="border border-neutral-200 p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xs tracking-[0.2em] uppercase text-neutral-900">
-                  {t("admin.photos")} ({photos.length})
+                  {t("admin.photos")} ({filteredPhotos.length})
                 </h2>
-                <button
-                  onClick={loadData}
-                  className="text-xs text-neutral-400 hover:text-neutral-700 transition-colors cursor-pointer tracking-wide"
-                >
-                  {t("admin.refresh")}
-                </button>
+                <div className="flex items-center gap-4">
+                  {/* Category filter */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-neutral-400 tracking-wide">
+                      {t("admin.filterByCategory")}
+                    </span>
+                    <select
+                      value={filterCategory}
+                      onChange={(e) => {
+                        setFilterCategory(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="px-3 py-1.5 border border-neutral-200 bg-white text-xs focus:outline-none focus:border-neutral-400 transition-colors"
+                    >
+                      <option value="">{t("admin.allCategories")}</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.name}>
+                          {c.display_name || c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    onClick={loadData}
+                    className="text-xs text-neutral-400 hover:text-neutral-700 transition-colors cursor-pointer tracking-wide"
+                  >
+                    {t("admin.refresh")}
+                  </button>
+                </div>
               </div>
 
               {loading ? (
                 <div className="text-center py-12">
                   <div className="inline-block w-5 h-5 border border-neutral-300 border-t-neutral-600 rounded-full animate-spin" />
                 </div>
-              ) : photos.length === 0 ? (
+              ) : filteredPhotos.length === 0 ? (
                 <p className="text-center py-12 text-sm text-neutral-400">
                   {t("admin.noPhotos")}
                 </p>
               ) : (
                 <>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {photos
+                    {filteredPhotos
                       .slice(
                         (currentPage - 1) * photosPerPage,
                         currentPage * photosPerPage
@@ -657,7 +777,7 @@ export default function AdminPage() {
                   </div>
 
                   {/* Pagination */}
-                  {photos.length > photosPerPage && (
+                  {filteredPhotos.length > photosPerPage && (
                     <div className="flex items-center justify-center gap-4 mt-8">
                       <button
                         onClick={() =>
@@ -670,20 +790,20 @@ export default function AdminPage() {
                       </button>
                       <span className="text-xs text-neutral-500">
                         {currentPage} {t("admin.pageOf")}{" "}
-                        {Math.ceil(photos.length / photosPerPage)}
+                        {Math.ceil(filteredPhotos.length / photosPerPage)}
                       </span>
                       <button
                         onClick={() =>
                           setCurrentPage((p) =>
                             Math.min(
-                              Math.ceil(photos.length / photosPerPage),
+                              Math.ceil(filteredPhotos.length / photosPerPage),
                               p + 1
                             )
                           )
                         }
                         disabled={
                           currentPage >=
-                          Math.ceil(photos.length / photosPerPage)
+                          Math.ceil(filteredPhotos.length / photosPerPage)
                         }
                         className="px-3 py-1.5 text-xs tracking-wide border border-neutral-200 text-neutral-600 hover:border-neutral-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                       >
@@ -788,9 +908,14 @@ export default function AdminPage() {
         {/* ──── Categories Tab ──── */}
         {activeTab === "categories" && (
           <section className="border border-neutral-200 p-6">
-            <h2 className="text-xs tracking-[0.2em] uppercase text-neutral-900 mb-6">
-              {t("admin.manageCategories")}
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xs tracking-[0.2em] uppercase text-neutral-900">
+                {t("admin.manageCategories")}
+              </h2>
+              <span className="text-xs text-neutral-400 tracking-wide">
+                {t("admin.dragToReorder")}
+              </span>
+            </div>
 
             <form onSubmit={handleAddCategory} className="flex gap-3 mb-8">
               <input
@@ -821,30 +946,110 @@ export default function AdminPage() {
                 {t("admin.noCategories")}
               </p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {categories.map((cat) => (
                   <div
                     key={cat.id}
-                    className="flex items-center justify-between py-3 px-4 border border-neutral-100"
+                    draggable
+                    onDragStart={() => handleCatDragStart(cat.id)}
+                    onDragOver={(e) => handleCatDragOver(e, cat.id)}
+                    onDragLeave={handleCatDragLeaveRow}
+                    onDrop={() => handleCatDrop(cat.id)}
+                    onDragEnd={handleCatDragEnd}
+                    className={`flex items-center justify-between py-3 px-4 border transition-colors cursor-grab active:cursor-grabbing ${
+                      dragOverCatId === cat.id
+                        ? "border-neutral-400 bg-neutral-50"
+                        : dragCatId === cat.id
+                        ? "border-neutral-300 opacity-50"
+                        : "border-neutral-100"
+                    }`}
                   >
-                    <div>
-                      <span className="text-sm text-neutral-800">
-                        {cat.display_name || cat.name}
-                      </span>
-                      {cat.display_name && cat.display_name !== cat.name && (
-                        <span className="text-xs text-neutral-400 ml-2">
-                          ({cat.name})
+                    <div className="flex items-center gap-3">
+                      {/* Drag handle */}
+                      <svg
+                        className="w-4 h-4 text-neutral-300 flex-shrink-0"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
+                      </svg>
+                      <div>
+                        <span className="text-sm text-neutral-800">
+                          {cat.display_name || cat.name}
                         </span>
-                      )}
+                        {cat.display_name && cat.display_name !== cat.name && (
+                          <span className="text-xs text-neutral-400 ml-2">
+                            ({cat.name})
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <button
-                      onClick={() => handleDeleteCategory(cat)}
-                      className="text-xs text-neutral-400 hover:text-red-500 transition-colors cursor-pointer tracking-wide"
-                    >
-                      {t("admin.delete")}
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => openEditCat(cat)}
+                        className="text-xs text-neutral-400 hover:text-neutral-700 transition-colors cursor-pointer tracking-wide"
+                      >
+                        {t("admin.edit")}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCategory(cat)}
+                        className="text-xs text-neutral-400 hover:text-red-500 transition-colors cursor-pointer tracking-wide"
+                      >
+                        {t("admin.delete")}
+                      </button>
+                    </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Edit Category Modal */}
+            {editingCat && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div className="bg-white w-full max-w-sm mx-4 p-6 shadow-lg">
+                  <h3 className="text-xs tracking-[0.2em] uppercase text-neutral-900 mb-6">
+                    {t("admin.editCategory")}
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className={labelClass}>
+                        {t("admin.catNamePlaceholder")}
+                      </label>
+                      <input
+                        type="text"
+                        value={editCatName}
+                        onChange={(e) => setEditCatName(e.target.value)}
+                        className={inputClass}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>
+                        {t("admin.catDisplayPlaceholder")}
+                      </label>
+                      <input
+                        type="text"
+                        value={editCatDisplay}
+                        onChange={(e) => setEditCatDisplay(e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button
+                      onClick={closeEditCat}
+                      className="px-4 py-2 text-xs tracking-wide text-neutral-500 hover:text-neutral-800 transition-colors cursor-pointer"
+                    >
+                      {t("admin.cancel")}
+                    </button>
+                    <button
+                      onClick={handleSaveEditCat}
+                      className="px-5 py-2 bg-neutral-900 text-white text-xs tracking-[0.15em] uppercase hover:bg-neutral-800 transition-colors cursor-pointer"
+                    >
+                      {t("admin.save")}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </section>

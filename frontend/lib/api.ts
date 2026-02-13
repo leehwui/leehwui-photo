@@ -15,6 +15,17 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Auto-logout on 401 (expired or invalid token)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      Cookies.remove("token", { path: "/" });
+    }
+    return Promise.reject(error);
+  }
+);
+
 export interface Photo {
   id: string;
   filename: string;
@@ -56,12 +67,12 @@ export async function login(
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
   });
   const token = res.data.access_token;
-  Cookies.set("token", token, { expires: 1 });
+  Cookies.set("token", token, { expires: 1, path: "/" });
   return token;
 }
 
 export function logout() {
-  Cookies.remove("token");
+  Cookies.remove("token", { path: "/" });
 }
 
 export function isLoggedIn(): boolean {
@@ -133,6 +144,18 @@ export async function createCategory(
 
 export async function deleteCategory(categoryId: string): Promise<void> {
   await api.delete(`/api/categories/${categoryId}`);
+}
+
+export async function updateCategory(
+  categoryId: string,
+  data: { name?: string; display_name?: string }
+): Promise<Category> {
+  const res = await api.put(`/api/categories/${categoryId}`, data);
+  return res.data;
+}
+
+export async function reorderCategories(ids: string[]): Promise<void> {
+  await api.put("/api/categories/reorder", { ids });
 }
 
 export default api;
