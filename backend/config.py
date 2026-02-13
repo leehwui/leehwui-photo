@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     minio_secret_key: str = "minioadmin"
     minio_bucket: str = "tangerine-photos"
     minio_secure: bool = False
+    minio_public_url: str = "https://photo.tangerinesoft.cn/storage"  # e.g. https://photo.your-domain.com/storage
 
     db_host: str = "127.0.0.1"
     db_port: int = 3306

@@ -111,8 +111,8 @@ docker run -d \
   -p 9000:9000 \
   -p 9001:9001 \
   -v /data/minio:/data \
-  -e MINIO_ROOT_USER=your_minio_access_key \
-  -e MINIO_ROOT_PASSWORD=your_minio_secret_key \
+  -e MINIO_ROOT_USER=minio_user \
+  -e MINIO_ROOT_PASSWORD=minio_password \
   minio/minio server /data --console-address ":9001"
 ```
 
@@ -161,13 +161,13 @@ If MySQL is already running, just create the database:
 
 ```bash
 mysql -u root -p <<EOF
-CREATE DATABASE IF NOT EXISTS tangerine_photo
+CREATE DATABASE IF NOT EXISTS leehwui_photo
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
 -- Optional: create a dedicated user instead of using root
-CREATE USER IF NOT EXISTS 'tangerine'@'localhost' IDENTIFIED BY 'CHANGE_THIS_PASSWORD';
-GRANT ALL PRIVILEGES ON tangerine_photo.* TO 'tangerine'@'localhost';
+CREATE USER IF NOT EXISTS 'leehwui'@'localhost' IDENTIFIED BY 'CHANGE_THIS_PASSWORD';
+GRANT ALL PRIVILEGES ON leehwui_photo.* TO 'leehwui'@'localhost';
 FLUSH PRIVILEGES;
 EOF
 ```
@@ -181,7 +181,7 @@ EOF
 ### 5.1 Set up Python virtual environment
 
 ```bash
-cd /var/www/tangerine-photo/backend
+cd /var/www/leehwui-photo/backend
 python3 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
@@ -248,35 +248,35 @@ uvicorn main:app --host 0.0.0.0 --port 8090
 ### 5.5 Create systemd service
 
 ```bash
-sudo tee /etc/systemd/system/tangerine-api.service > /dev/null <<EOF
+sudo tee /etc/systemd/system/leehwui-photo-api.service > /dev/null <<EOF
 [Unit]
-Description=Tangerine Photo API (FastAPI)
+Description=Leehwui Photo API (FastAPI)
 After=network.target mysql.service
 
 [Service]
 Type=simple
 User=$USER
 Group=$USER
-WorkingDirectory=/var/www/tangerine-photo/backend
-Environment="PATH=/var/www/tangerine-photo/backend/venv/bin:/usr/bin"
-ExecStart=/var/www/tangerine-photo/backend/venv/bin/uvicorn main:app \
+WorkingDirectory=/var/www/leehwui-photo/backend
+Environment="PATH=/var/www/leehwui-photo/backend/venv/bin:/usr/bin"
+ExecStart=/var/www/leehwui-photo/backend/venv/bin/uvicorn main:app \
     --host 127.0.0.1 \
     --port 8090 \
     --workers 2 \
     --log-level info
 Restart=always
 RestartSec=5
-StandardOutput=append:/var/log/tangerine-api.log
-StandardError=append:/var/log/tangerine-api.log
+StandardOutput=append:/var/log/leehwui-photo-api.log
+StandardError=append:/var/log/leehwui-photo-api.log
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
 sudo systemctl daemon-reload
-sudo systemctl enable tangerine-api
-sudo systemctl start tangerine-api
-sudo systemctl status tangerine-api
+sudo systemctl enable leehwui-photo-api
+sudo systemctl start leehwui-photo-api
+sudo systemctl status leehwui-photo-api
 ```
 
 > **Note:** In production, use `--host 127.0.0.1` (not `0.0.0.0`) since Nginx will proxy requests. This prevents direct external access.
@@ -288,7 +288,7 @@ sudo systemctl status tangerine-api
 ### 6.1 Install dependencies and build
 
 ```bash
-cd /var/www/tangerine-photo/frontend
+cd /var/www/leehwui-photo/frontend
 npm ci --production=false   # install all deps including devDeps for build
 ```
 
@@ -315,8 +315,8 @@ npm run build
 # Install PM2 globally if not already installed
 sudo npm install -g pm2
 
-cd /var/www/tangerine-photo/frontend
-pm2 start npm --name "tangerine-web" -- start -- --port 3001
+cd /var/www/leehwui-photo/frontend
+pm2 start npm --name "leehwui-photo-web" -- start -- --port 3003
 pm2 save
 pm2 startup  # follow the instructions it prints
 ```
@@ -361,13 +361,13 @@ sudo systemctl status tangerine-web
 Create a new site config (do **not** modify your existing site configs):
 
 ```bash
-sudo nano /etc/nginx/sites-available/tangerine-photo
+sudo nano /etc/nginx/sites-available/leehwui-photo
 ```
 
 ```nginx
 server {
     listen 80;
-    server_name photo.your-domain.com;   # change to your domain
+    server_name photo.tangerinesoft.cn;   # change to your domain
 
     client_max_body_size 50M;  # allow large photo uploads
 
@@ -386,7 +386,7 @@ server {
 
     # MinIO storage proxy (so images are served from the same domain)
     location /storage/ {
-        rewrite ^/storage/(.*) /tangerine-photos/$1 break;
+        rewrite ^/storage/(.*) /leehwui-photos/$1 break;
         proxy_pass http://127.0.0.1:9000;
         proxy_set_header Host $host;
         proxy_hide_header X-Amz-Request-Id;
@@ -415,7 +415,7 @@ server {
 Enable the site and reload:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/tangerine-photo /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/leehwui-photo /etc/nginx/sites-enabled/
 sudo nginx -t          # test config
 sudo systemctl reload nginx
 ```
@@ -427,7 +427,7 @@ When proxying MinIO images through Nginx (recommended for production), you need 
 In `backend/.env.production`, add:
 
 ```env
-MINIO_PUBLIC_URL=https://photo.your-domain.com/storage
+MINIO_PUBLIC_URL=https://photo.tangerinesoft.cn/storage
 ```
 
 Then update `backend/config.py` to include:
@@ -482,14 +482,14 @@ sudo ufw status
 
 ```bash
 # Backend
-sudo journalctl -u tangerine-api -f
+sudo journalctl -u leehwui-photo-api -f
 # or
-tail -f /var/log/tangerine-api.log
+tail -f /var/log/leehwui-photo-api.log
 
 # Frontend
 sudo journalctl -u tangerine-web -f
 # or (if using PM2)
-pm2 logs tangerine-web
+pm2 logs leehwui-photo-web
 
 # Nginx
 tail -f /var/log/nginx/access.log
@@ -499,14 +499,14 @@ tail -f /var/log/nginx/error.log
 ### Restart services
 
 ```bash
-sudo systemctl restart tangerine-api
-sudo systemctl restart tangerine-web
+sudo systemctl restart leehwui-photo-api
+sudo systemctl restart leehwui-photo-web
 ```
 
 ### Update deployment
 
 ```bash
-cd /var/www/tangerine-photo
+cd /var/www/leehwui-photo
 git pull origin main
 
 # Backend

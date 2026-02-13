@@ -189,8 +189,14 @@ async def upload_photo(
         content_type=file.content_type or "image/jpeg",
     )
 
-    protocol = "https" if settings.minio_secure else "http"
-    url = f"{protocol}://{settings.minio_endpoint}/{settings.minio_bucket}/{object_key}"
+    if settings.minio_public_url:
+        url = f"{settings.minio_public_url}/{object_key}"
+    else:
+        protocol = "https" if settings.minio_secure else "http"
+        url = f"{protocol}://{settings.minio_endpoint}/{settings.minio_bucket}/{object_key}"
+
+    # protocol = "https" if settings.minio_secure else "http"
+    # url = f"{protocol}://{settings.minio_endpoint}/{settings.minio_bucket}/{object_key}"
 
     # Ensure category exists
     cat_row = db.query(Category).filter_by(name=category).first()
