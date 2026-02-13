@@ -17,7 +17,7 @@ class Photo(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     filename = Column(String(255), nullable=False)
     original_filename = Column(String(255), nullable=False)
-    object_key = Column(String(512), nullable=False, comment="MinIO object key")
+    object_key = Column(String(512), nullable=False, comment="COS object key")
     url = Column(String(1024), nullable=False)
     category = Column(String(100), nullable=False, default="uncategorized", index=True)
     title = Column(String(255), nullable=True)

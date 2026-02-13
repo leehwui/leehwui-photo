@@ -1,5 +1,4 @@
 import uuid
-from io import BytesIO
 from typing import Optional, List
 
 from fastapi import (
@@ -13,7 +12,7 @@ from sqlalchemy.orm import Session
 from config import settings
 from database import engine, get_db, Base
 from models import Photo, Category, SiteSettings
-from storage import get_minio_client, ensure_bucket
+from storage import get_cos_client, ensure_bucket
 from auth import authenticate_user, create_access_token, get_current_user, Token
 
 # ---------------------------------------------------------------------------
@@ -29,9 +28,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize MinIO
-minio_client = get_minio_client()
-ensure_bucket(minio_client)
+# Initialize Tencent COS
+cos_client = get_cos_client()
+ensure_bucket(cos_client)
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -181,22 +180,14 @@ async def upload_photo(
     file_data = await file.read()
     file_size = len(file_data)
 
-    minio_client.put_object(
-        settings.minio_bucket,
-        object_key,
-        BytesIO(file_data),
-        length=file_size,
-        content_type=file.content_type or "image/jpeg",
+    cos_client.put_object(
+        Bucket=settings.cos_bucket,
+        Key=object_key,
+        Body=file_data,
+        ContentType=file.content_type or "image/jpeg",
     )
 
-    if settings.minio_public_url:
-        url = f"{settings.minio_public_url}/{object_key}"
-    else:
-        protocol = "https" if settings.minio_secure else "http"
-        url = f"{protocol}://{settings.minio_endpoint}/{settings.minio_bucket}/{object_key}"
-
-    # protocol = "https" if settings.minio_secure else "http"
-    # url = f"{protocol}://{settings.minio_endpoint}/{settings.minio_bucket}/{object_key}"
+    url = f"{settings.cos_public_url}/{object_key}"
 
     # Ensure category exists
     cat_row = db.query(Category).filter_by(name=category).first()
@@ -263,9 +254,9 @@ def delete_photo(
     if not photo:
         raise HTTPException(status_code=404, detail="Photo not found")
 
-    # Remove from MinIO
+    # Remove from COS
     try:
-        minio_client.remove_object(settings.minio_bucket, photo.object_key)
+        cos_client.delete_object(Bucket=settings.cos_bucket, Key=photo.object_key)
     except Exception:
         pass
 

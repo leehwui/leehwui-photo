@@ -2,12 +2,10 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    minio_endpoint: str = "localhost:9000"
-    minio_access_key: str = "minioadmin"
-    minio_secret_key: str = "minioadmin"
-    minio_bucket: str = "tangerine-photos"
-    minio_secure: bool = False
-    minio_public_url: str = "https://photo.tangerinesoft.cn/storage"  # e.g. https://photo.your-domain.com/storage
+    cos_secret_id: str = ""
+    cos_secret_key: str = ""
+    cos_region: str = "ap-guangzhou"
+    cos_bucket: str = "leehwui-photo-dev-1253272222"
 
     db_host: str = "127.0.0.1"
     db_port: int = 3306
@@ -23,6 +21,10 @@ class Settings(BaseSettings):
     port: int = 8090
 
     access_token_expire_minutes: int = 60 * 24  # 24 hours
+
+    @property
+    def cos_public_url(self) -> str:
+        return f"https://{self.cos_bucket}.cos.{self.cos_region}.myqcloud.com"
 
     @property
     def database_url(self) -> str:
