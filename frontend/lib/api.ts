@@ -1,0 +1,138 @@
+import axios from "axios";
+import Cookies from "js-cookie";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8090";
+
+const api = axios.create({
+  baseURL: API_URL,
+});
+
+api.interceptors.request.use((config) => {
+  const token = Cookies.get("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export interface Photo {
+  id: string;
+  filename: string;
+  url: string;
+  category: string;
+  title?: string;
+  description?: string;
+  width?: number;
+  height?: number;
+  sort_order: number;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  display_name?: string;
+  sort_order: number;
+}
+
+export interface SiteSettings {
+  site_title: string;
+  site_subtitle: string;
+  contact_email: string;
+  weibo_url: string;
+  wechat_id: string;
+  xiaohongshu_url: string;
+  bilibili_url: string;
+  douyin_url: string;
+}
+
+export async function login(
+  username: string,
+  password: string
+): Promise<string> {
+  const formData = new URLSearchParams();
+  formData.append("username", username);
+  formData.append("password", password);
+  const res = await api.post("/api/auth/login", formData, {
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  });
+  const token = res.data.access_token;
+  Cookies.set("token", token, { expires: 1 });
+  return token;
+}
+
+export function logout() {
+  Cookies.remove("token");
+}
+
+export function isLoggedIn(): boolean {
+  return !!Cookies.get("token");
+}
+
+export async function getPhotos(category?: string): Promise<Photo[]> {
+  const params = category ? { category } : {};
+  const res = await api.get("/api/photos", { params });
+  return res.data;
+}
+
+export async function getCategories(): Promise<Category[]> {
+  const res = await api.get("/api/categories");
+  return res.data;
+}
+
+export async function getSiteSettings(): Promise<SiteSettings> {
+  const res = await api.get("/api/settings");
+  return res.data;
+}
+
+export async function uploadPhoto(
+  file: File,
+  category: string,
+  title?: string,
+  description?: string
+): Promise<Photo> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("category", category);
+  if (title) formData.append("title", title);
+  if (description) formData.append("description", description);
+  const res = await api.post("/api/photos", formData);
+  return res.data;
+}
+
+export async function deletePhoto(photoId: string): Promise<void> {
+  await api.delete(`/api/photos/${photoId}`);
+}
+
+export async function updatePhoto(
+  photoId: string,
+  data: { title?: string; description?: string; category?: string }
+): Promise<void> {
+  const formData = new FormData();
+  if (data.title !== undefined) formData.append("title", data.title);
+  if (data.description !== undefined) formData.append("description", data.description);
+  if (data.category !== undefined) formData.append("category", data.category);
+  await api.put(`/api/photos/${photoId}`, formData);
+}
+
+export async function updateSettings(
+  settings: Partial<SiteSettings>
+): Promise<void> {
+  await api.put("/api/settings", settings);
+}
+
+export async function createCategory(
+  name: string,
+  displayName?: string
+): Promise<Category> {
+  const res = await api.post("/api/categories", {
+    name,
+    display_name: displayName,
+  });
+  return res.data;
+}
+
+export async function deleteCategory(categoryId: string): Promise<void> {
+  await api.delete(`/api/categories/${categoryId}`);
+}
+
+export default api;
