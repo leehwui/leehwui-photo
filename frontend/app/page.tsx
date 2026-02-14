@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Footer from "@/components/Footer";
 import GalleryGrid from "@/components/GalleryGrid";
 import { useI18n, LanguageSwitcher } from "@/lib/i18n";
@@ -12,6 +12,8 @@ import {
   Category,
   SiteSettings,
 } from "@/lib/api";
+
+const PAGE_SIZE = 20;
 
 const DEFAULT_SETTINGS: SiteSettings = {
   site_title: "TANGERINE",
@@ -27,23 +29,27 @@ const DEFAULT_SETTINGS: SiteSettings = {
 export default function Home() {
   const { t } = useI18n();
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [total, setTotal] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
+  /* Initial load */
   useEffect(() => {
-    loadAll();
+    loadInitial();
   }, []);
 
-  async function loadAll() {
+  async function loadInitial() {
     try {
-      const [p, c, s] = await Promise.all([
-        getPhotos(),
+      const [photosRes, c, s] = await Promise.all([
+        getPhotos(undefined, 0, PAGE_SIZE),
         getCategories(),
         getSiteSettings(),
       ]);
-      setPhotos(p);
+      setPhotos(photosRes.items);
+      setTotal(photosRes.total);
       setCategories(c);
       setSettings(s);
     } catch (err) {
@@ -53,18 +59,42 @@ export default function Home() {
     }
   }
 
+  /* Category switch — reset to first page */
   async function handleCategoryChange(cat: string | null) {
     setActiveCategory(cat);
     setLoading(true);
+    setPhotos([]);
     try {
-      const data = await getPhotos(cat || undefined);
-      setPhotos(data);
+      const data = await getPhotos(cat || undefined, 0, PAGE_SIZE);
+      setPhotos(data.items);
+      setTotal(data.total);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
   }
+
+  /* Load more — triggered by infinite scroll */
+  const handleLoadMore = useCallback(async () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const data = await getPhotos(
+        activeCategory || undefined,
+        photos.length,
+        PAGE_SIZE
+      );
+      setPhotos((prev) => [...prev, ...data.items]);
+      setTotal(data.total);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [activeCategory, photos.length, loadingMore]);
+
+  const hasMore = photos.length < total;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -115,13 +145,18 @@ export default function Home() {
       </nav>
 
       {/* Gallery */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-6">
+      <main className="flex-1 w-full mx-auto px-2 sm:px-4 lg:px-6 max-w-7xl">
         {loading ? (
           <div className="text-center py-32">
             <div className="inline-block w-5 h-5 border border-neutral-300 border-t-neutral-600 rounded-full animate-spin" />
           </div>
         ) : (
-          <GalleryGrid photos={photos} />
+          <GalleryGrid
+            photos={photos}
+            hasMore={hasMore}
+            loading={loadingMore}
+            onLoadMore={handleLoadMore}
+          />
         )}
       </main>
 

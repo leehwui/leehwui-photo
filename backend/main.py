@@ -78,6 +78,11 @@ class PhotoOut(BaseModel):
         from_attributes = True
 
 
+class PaginatedPhotos(BaseModel):
+    items: List[PhotoOut]
+    total: int
+
+
 class CategoryOut(BaseModel):
     id: str
     name: str
@@ -131,16 +136,20 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 # ---------------------------------------------------------------------------
 # Public: Photos
 # ---------------------------------------------------------------------------
-@app.get("/api/photos", response_model=List[PhotoOut])
+@app.get("/api/photos", response_model=PaginatedPhotos)
 def list_photos(
     category: Optional[str] = None,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
     q = db.query(Photo).filter(Photo.is_visible == True)
     if category:
         q = q.filter(Photo.category == category)
     q = q.order_by(Photo.sort_order.asc(), Photo.created_at.desc())
-    return q.all()
+    total = q.count()
+    items = q.offset(skip).limit(limit).all()
+    return PaginatedPhotos(items=items, total=total)
 
 
 @app.get("/api/categories", response_model=List[CategoryOut])

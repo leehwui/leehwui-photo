@@ -7,7 +7,7 @@ import {
   login,
   logout,
   isLoggedIn,
-  getPhotos,
+  getAllPhotos,
   getCategories,
   getSiteSettings,
   uploadPhoto,
@@ -102,7 +102,7 @@ export default function AdminPage() {
     setLoading(true);
     try {
       const [p, c, s] = await Promise.all([
-        getPhotos(),
+        getAllPhotos(),
         getCategories(),
         getSiteSettings(),
       ]);

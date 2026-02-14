@@ -98,10 +98,28 @@ export function isLoggedIn(): boolean {
   return !!getToken();
 }
 
-export async function getPhotos(category?: string): Promise<Photo[]> {
-  const params = category ? { category } : {};
+export interface PaginatedPhotos {
+  items: Photo[];
+  total: number;
+}
+
+export async function getPhotos(
+  category?: string,
+  skip = 0,
+  limit = 20
+): Promise<PaginatedPhotos> {
+  const params: Record<string, string | number> = { skip, limit };
+  if (category) params.category = category;
   const res = await api.get("/api/photos", { params });
   return res.data;
+}
+
+/** Fetch ALL photos (no pagination) — used by admin panel */
+export async function getAllPhotos(category?: string): Promise<Photo[]> {
+  const params: Record<string, string | number> = { skip: 0, limit: 10000 };
+  if (category) params.category = category;
+  const res = await api.get("/api/photos", { params });
+  return res.data.items;
 }
 
 export async function getCategories(): Promise<Category[]> {
