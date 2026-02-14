@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from config import settings
 from database import engine, get_db, Base
 from models import Photo, Category, SiteSettings
-from storage import get_cos_client, ensure_bucket
+from storage import get_storage_client
 from auth import authenticate_user, create_access_token, get_current_user, Token
 
 # ---------------------------------------------------------------------------
@@ -28,9 +28,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Tencent COS
-cos_client = get_cos_client()
-ensure_bucket(cos_client)
+# Initialize storage (MinIO or Tencent COS, depending on STORAGE_BACKEND)
+storage = get_storage_client()
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -140,7 +139,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 def list_photos(
     category: Optional[str] = None,
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=20, ge=1, le=100),
+    limit: int = Query(default=20, ge=1, le=10000),
     db: Session = Depends(get_db),
 ):
     q = db.query(Photo).filter(Photo.is_visible == True)
@@ -189,14 +188,9 @@ async def upload_photo(
     file_data = await file.read()
     file_size = len(file_data)
 
-    cos_client.put_object(
-        Bucket=settings.cos_bucket,
-        Key=object_key,
-        Body=file_data,
-        ContentType=file.content_type or "image/jpeg",
-    )
+    storage.put_object(object_key, file_data, file.content_type or "image/jpeg")
 
-    url = f"{settings.cos_public_url}/{object_key}"
+    url = f"{settings.public_url}/{object_key}"
 
     # Ensure category exists
     cat_row = db.query(Category).filter_by(name=category).first()
@@ -263,9 +257,9 @@ def delete_photo(
     if not photo:
         raise HTTPException(status_code=404, detail="Photo not found")
 
-    # Remove from COS
+    # Remove from storage
     try:
-        cos_client.delete_object(Bucket=settings.cos_bucket, Key=photo.object_key)
+        storage.delete_object(photo.object_key)
     except Exception:
         pass
 

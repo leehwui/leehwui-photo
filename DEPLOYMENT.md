@@ -178,6 +178,9 @@ nano .env.production
 Edit `.env.production`:
 
 ```env
+# Storage backend: "cos" for production, "minio" for local dev
+STORAGE_BACKEND=cos
+
 # Tencent COS
 COS_SECRET_ID=your_cos_secret_id
 COS_SECRET_KEY=your_cos_secret_key
@@ -486,11 +489,17 @@ coscmd download -r / /backups/cos/
 
 | Variable       | Default                    | Description                    |
 |----------------|----------------------------|--------------------------------|
+| `STORAGE_BACKEND` | `cos`                   | Storage backend: `cos` (Tencent COS) or `minio` (local MinIO) |
 | `COS_SECRET_ID` | (empty)                   | Tencent COS SecretId           |
 | `COS_SECRET_KEY` | (empty)                  | Tencent COS SecretKey          |
 | `COS_REGION`   | `ap-guangzhou`              | COS bucket region              |
 | `COS_BUCKET`   | `leehwui-photo-dev-1253272222` | COS bucket name             |
 | `COS_CDN_URL`  | (empty)                    | CDN domain for serving images (e.g. `https://cdn-leehwui-photo.tangerinesoft.cn`). Falls back to direct COS URL if empty. |
+| `MINIO_ENDPOINT` | `localhost:9000`          | MinIO server endpoint (used when `STORAGE_BACKEND=minio`) |
+| `MINIO_ACCESS_KEY` | `minioadmin`            | MinIO access key              |
+| `MINIO_SECRET_KEY` | `minioadmin`            | MinIO secret key              |
+| `MINIO_BUCKET` | `tangerine-photos`          | MinIO bucket name             |
+| `MINIO_SECURE` | `false`                     | Use HTTPS for MinIO           |
 | `DB_HOST`      | `127.0.0.1`                | MySQL host                     |
 | `DB_PORT`      | `3306`                     | MySQL port                     |
 | `DB_USER`      | `root`                     | MySQL user                     |

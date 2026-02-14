@@ -2,11 +2,22 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    # Storage backend: "cos" (Tencent COS) or "minio"
+    storage_backend: str = "cos"
+
+    # Tencent COS settings
     cos_secret_id: str = ""
     cos_secret_key: str = ""
     cos_region: str = "ap-guangzhou"
     cos_bucket: str = "leehwui-photo-dev-1253272222"
     cos_cdn_url: str = ""  # e.g. https://cdn-leehwui-photo.tangerinesoft.cn
+
+    # MinIO settings
+    minio_endpoint: str = "localhost:9000"
+    minio_access_key: str = "minioadmin"
+    minio_secret_key: str = "minioadmin"
+    minio_bucket: str = "tangerine-photos"
+    minio_secure: bool = False
 
     db_host: str = "127.0.0.1"
     db_port: int = 3306
@@ -24,7 +35,12 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24  # 24 hours
 
     @property
-    def cos_public_url(self) -> str:
+    def public_url(self) -> str:
+        """Return the base public URL for serving uploaded files."""
+        if self.storage_backend == "minio":
+            protocol = "https" if self.minio_secure else "http"
+            return f"{protocol}://{self.minio_endpoint}/{self.minio_bucket}"
+        # COS: prefer CDN if configured
         if self.cos_cdn_url:
             return self.cos_cdn_url.rstrip("/")
         return f"https://{self.cos_bucket}.cos.{self.cos_region}.myqcloud.com"
