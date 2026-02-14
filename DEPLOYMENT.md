@@ -113,15 +113,25 @@ Photo storage uses [Tencent Cloud Object Storage (COS)](https://cloud.tencent.co
 2. Create a SecretId / SecretKey pair
 3. Store them securely — you'll put them in the backend `.env`
 
-### 3.3 CORS configuration (optional)
+### 3.3 Configure CDN (recommended)
 
-If the frontend loads images directly from COS, configure CORS on the bucket:
+1. Go to [Tencent CDN Console](https://console.cloud.tencent.com/cdn)
+2. Add a domain (e.g. `cdn-leehwui-photo.tangerinesoft.cn`)
+3. Set the origin to the COS bucket (`leehwui-photo-1253272222.cos.ap-beijing.myqcloud.com`)
+4. Enable HTTPS and configure your SSL certificate
+5. Add a CNAME DNS record pointing your CDN domain to the CDN-provided CNAME
+6. Set `COS_CDN_URL` in `backend/.env` to your CDN domain
+
+### 3.4 CORS configuration (optional)
+
+If the frontend loads images directly from COS/CDN, configure CORS on the bucket:
 
 - Allowed Origin: `https://your-domain.com`
 - Allowed Methods: `GET`
 - Allowed Headers: `*`
 
-> **Image URL format:** `https://{bucket}.cos.{region}.myqcloud.com/{key}`
+> **Image URL format (CDN):** `https://cdn-leehwui-photo.tangerinesoft.cn/{key}`
+> **Image URL format (direct COS):** `https://{bucket}.cos.{region}.myqcloud.com/{key}`
 
 ---
 
@@ -171,8 +181,9 @@ Edit `.env.production`:
 # Tencent COS
 COS_SECRET_ID=your_cos_secret_id
 COS_SECRET_KEY=your_cos_secret_key
-COS_REGION=ap-guangzhou
+COS_REGION=ap-beijing
 COS_BUCKET=leehwui-photo-1253272222
+COS_CDN_URL=https://cdn-leehwui-photo.tangerinesoft.cn
 
 # MySQL
 DB_HOST=127.0.0.1
@@ -479,6 +490,7 @@ coscmd download -r / /backups/cos/
 | `COS_SECRET_KEY` | (empty)                  | Tencent COS SecretKey          |
 | `COS_REGION`   | `ap-guangzhou`              | COS bucket region              |
 | `COS_BUCKET`   | `leehwui-photo-dev-1253272222` | COS bucket name             |
+| `COS_CDN_URL`  | (empty)                    | CDN domain for serving images (e.g. `https://cdn-leehwui-photo.tangerinesoft.cn`). Falls back to direct COS URL if empty. |
 | `DB_HOST`      | `127.0.0.1`                | MySQL host                     |
 | `DB_PORT`      | `3306`                     | MySQL port                     |
 | `DB_USER`      | `root`                     | MySQL user                     |
@@ -527,14 +539,22 @@ npm run build
 ### Images not loading
 
 ```bash
-# Photos are served from Tencent COS:
+# Photos are served via Tencent CDN → COS:
 # 1. Verify COS credentials in backend .env (COS_SECRET_ID, COS_SECRET_KEY)
 # 2. Check bucket exists and is set to public-read
 # 3. Verify COS_REGION matches the bucket's region
-# 4. Test a COS URL directly: https://<bucket>.cos.<region>.myqcloud.com/<key>
+# 4. Verify COS_CDN_URL points to your CDN domain
+# 5. Test the CDN URL: curl https://cdn-leehwui-photo.tangerinesoft.cn/<key>
+# 6. Test direct COS: curl https://<bucket>.cos.<region>.myqcloud.com/<key>
+#
+# If CDN fails but direct COS works:
+# - Check CDN domain CNAME DNS record
+# - Check CDN origin is set to the correct COS bucket
+# - Check CDN SSL certificate
 #
 # If images show as broken:
-# The photo URLs stored in the database may need updating after changing buckets.
+# The photo URLs stored in the database may need updating after changing
+# COS_CDN_URL. Run a SQL UPDATE to replace the old URL prefix.
 ```
 
 ### 502 Bad Gateway

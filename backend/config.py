@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     cos_secret_key: str = ""
     cos_region: str = "ap-guangzhou"
     cos_bucket: str = "leehwui-photo-dev-1253272222"
+    cos_cdn_url: str = ""  # e.g. https://cdn-leehwui-photo.tangerinesoft.cn
 
     db_host: str = "127.0.0.1"
     db_port: int = 3306
@@ -24,6 +25,8 @@ class Settings(BaseSettings):
 
     @property
     def cos_public_url(self) -> str:
+        if self.cos_cdn_url:
+            return self.cos_cdn_url.rstrip("/")
         return f"https://{self.cos_bucket}.cos.{self.cos_region}.myqcloud.com"
 
     @property
