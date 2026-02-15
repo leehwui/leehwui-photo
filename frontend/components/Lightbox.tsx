@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Photo, trackPhotoView, trackPhotoDownload } from "@/lib/api";
+import { Photo, trackPhotoView } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 
 interface LightboxProps {
@@ -44,23 +44,6 @@ export default function Lightbox({
     [photos.length]
   );
 
-  const handleDownload = useCallback(
-    async (e: React.MouseEvent) => {
-      e.stopPropagation();
-      trackPhotoDownload(photo.id);
-      // Open image in new tab for download
-      const link = document.createElement("a");
-      link.href = photo.url;
-      link.download = photo.title || photo.filename || "photo";
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    },
-    [photo]
-  );
-
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -100,17 +83,6 @@ export default function Lightbox({
         className="absolute top-6 right-8 text-white/60 hover:text-white text-sm tracking-widest uppercase cursor-pointer z-50"
       >
         {t("gallery.close")}
-      </button>
-
-      {/* Download */}
-      <button
-        onClick={handleDownload}
-        className="absolute top-6 right-24 text-white/40 hover:text-white cursor-pointer z-50"
-        title="Download"
-      >
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
-        </svg>
       </button>
 
       {/* Prev */}
@@ -155,7 +127,7 @@ export default function Lightbox({
         <div className="max-w-5xl mx-auto flex items-center gap-3 text-[11px]">
           {/* Title */}
           {hasTitle && (
-            <span className="text-white/80 font-light tracking-wide truncate shrink min-w-0">
+            <span className="text-white/85 text-sm font-medium tracking-wide truncate shrink min-w-0">
               {photo.title}
             </span>
           )}
