@@ -466,33 +466,38 @@ sudo systemctl restart leehwui-photo-web   # or: pm2 restart leehwui-photo-web
 
 ### Database migrations
 
-SQLAlchemy `create_all()` only creates **new tables** — it does not add columns to existing tables. When the schema adds new columns, run the following SQL manually:
+Database schema changes are managed by **Alembic** (integrated with SQLAlchemy). Migration files live in `backend/alembic/versions/`.
 
 ```bash
-mysql -u root -p tangerine_photo
+cd /srv/tangerine-photo/backend
+source venv/bin/activate
+
+# Apply all pending migrations
+alembic upgrade head
+
+# Check current migration state
+alembic current
+
+# View migration history
+alembic history
 ```
 
-#### Migration: View counters + EXIF metadata (2026-02)
+#### Creating new migrations (development)
 
-```sql
--- View / download counters
-ALTER TABLE photos ADD COLUMN view_count INT NOT NULL DEFAULT 0;
-ALTER TABLE photos ADD COLUMN download_count INT NOT NULL DEFAULT 0;
+When you change models in `models.py`, generate a migration:
 
--- EXIF metadata
-ALTER TABLE photos ADD COLUMN camera_make VARCHAR(100) NULL;
-ALTER TABLE photos ADD COLUMN camera_model VARCHAR(100) NULL;
-ALTER TABLE photos ADD COLUMN iso INT NULL;
-ALTER TABLE photos ADD COLUMN aperture FLOAT NULL;
-ALTER TABLE photos ADD COLUMN shutter_speed VARCHAR(50) NULL;
-ALTER TABLE photos ADD COLUMN focal_length FLOAT NULL;
+```bash
+alembic revision --autogenerate -m "describe the change"
+```
 
--- Site-wide stats table (created automatically, but included for completeness)
-CREATE TABLE IF NOT EXISTS site_stats (
-  `key` VARCHAR(100) PRIMARY KEY,
-  value INT NOT NULL DEFAULT 0,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+Review the generated file in `alembic/versions/`, then commit it.
+
+#### First-time setup on existing database
+
+If deploying to a server that already has all tables (from `create_all()`), stamp the current state so Alembic knows the schema is up to date:
+
+```bash
+alembic stamp head
 ```
 
 > **Note:** Always back up the database before running migrations.

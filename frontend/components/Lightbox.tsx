@@ -125,14 +125,14 @@ export default function Lightbox({
 
       {/* Image */}
       <div
-        className={`max-w-[92vw] flex items-center justify-center ${showInfoBar ? "max-h-[82vh]" : "max-h-[92vh]"}`}
+        className={`max-w-[92vw] flex items-center justify-center ${showInfoBar ? "max-h-[88vh]" : "max-h-[92vh]"}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={photo.url}
           alt={photo.title || ""}
-          className={`max-w-full object-contain select-none ${showInfoBar ? "max-h-[78vh]" : "max-h-[90vh]"}`}
+          className={`max-w-full object-contain select-none ${showInfoBar ? "max-h-[86vh]" : "max-h-[90vh]"}`}
           draggable={false}
         />
       </div>
@@ -147,37 +147,42 @@ export default function Lightbox({
         </button>
       )}
 
-      {/* Bottom info bar: title + metadata + counter */}
+      {/* Bottom info bar — single compact row */}
       <div
-        className="absolute bottom-0 left-0 right-0 px-6 py-4 bg-gradient-to-t from-black/70 to-transparent"
+        className="absolute bottom-0 left-0 right-0 px-6 py-2.5 bg-gradient-to-t from-black/60 to-transparent"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="max-w-4xl mx-auto flex items-end justify-between gap-4">
-          {/* Left: title + metadata */}
-          <div className="min-w-0 flex-1">
-            {hasTitle && (
-              <p className="text-white/90 text-sm font-light tracking-wide truncate mb-1">
-                {photo.title}
-              </p>
-            )}
-            {hasMetadata && (
-              <div className="flex items-center gap-3 flex-wrap">
-                {metaItems.map((item) => (
-                  <span
-                    key={item.label}
-                    className="text-white/50 text-[11px] tracking-wide"
-                  >
-                    <span className="text-white/30">{item.label}</span>{" "}
-                    {item.value}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+        <div className="max-w-5xl mx-auto flex items-center gap-3 text-[11px]">
+          {/* Title */}
+          {hasTitle && (
+            <span className="text-white/80 font-light tracking-wide truncate shrink min-w-0">
+              {photo.title}
+            </span>
+          )}
 
-          {/* Right: counter */}
+          {/* Separator between title and metadata */}
+          {hasTitle && hasMetadata && (
+            <span className="text-white/20">·</span>
+          )}
+
+          {/* Metadata items inline */}
+          {hasMetadata && (
+            <div className="flex items-center gap-2.5 shrink-0">
+              {metaItems.map((item, i) => (
+                <span key={item.label} className="text-white/45 tracking-wide whitespace-nowrap">
+                  {i > 0 && <span className="text-white/15 mr-2.5">·</span>}
+                  {item.value}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Spacer */}
+          <span className="flex-1" />
+
+          {/* Counter */}
           {photos.length > 1 && (
-            <span className="text-white/30 text-xs tracking-widest whitespace-nowrap">
+            <span className="text-white/30 tracking-widest whitespace-nowrap shrink-0">
               {index + 1} / {photos.length}
             </span>
           )}

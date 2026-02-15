@@ -68,7 +68,7 @@ def _extract_exif(file_data: bytes) -> dict:
     result: dict = {}
     try:
         from PIL import Image
-        from PIL.ExifTags import TAGS
+        from PIL.ExifTags import TAGS, IFD
         from io import BytesIO
 
         img = Image.open(BytesIO(file_data))
@@ -79,48 +79,38 @@ def _extract_exif(file_data: bytes) -> dict:
         if not exif_data:
             return result
 
-        # Build a tag-name → value map
-        named: dict = {}
-        for tag_id, value in exif_data.items():
-            tag_name = TAGS.get(tag_id, str(tag_id))
-            named[tag_name] = value
+        # Camera make/model are in the top-level IFD
+        result["camera_make"] = str(exif_data.get(271, "")).strip() or None   # Make
+        result["camera_model"] = str(exif_data.get(272, "")).strip() or None  # Model
 
-        result["camera_make"] = str(named.get("Make", "")).strip() or None
-        result["camera_model"] = str(named.get("Model", "")).strip() or None
-        result["iso"] = named.get("ISOSpeedRatings") or None
+        # ISO, aperture, shutter, focal length are in the Exif sub-IFD
+        ifd_exif = exif_data.get_ifd(IFD.Exif)
+        if not ifd_exif:
+            return result
 
-        # Aperture (FNumber is a ratio)
-        fnumber = named.get("FNumber")
-        if fnumber:
-            if hasattr(fnumber, "numerator"):
-                result["aperture"] = round(float(fnumber.numerator) / float(fnumber.denominator), 1) if fnumber.denominator else None
-            else:
-                result["aperture"] = round(float(fnumber), 1)
+        # ISO
+        iso = ifd_exif.get(34855)  # ISOSpeedRatings
+        if iso:
+            result["iso"] = int(iso)
 
-        # Shutter speed (ExposureTime is a ratio)
-        exposure = named.get("ExposureTime")
-        if exposure:
-            if hasattr(exposure, "numerator"):
-                num, den = exposure.numerator, exposure.denominator
-                if den and num:
-                    if num < den:
-                        result["shutter_speed"] = f"{num}/{den}"
-                    else:
-                        result["shutter_speed"] = f"{round(num / den, 1)}"
-            else:
-                val = float(exposure)
-                if val < 1:
-                    result["shutter_speed"] = f"1/{int(round(1 / val))}"
-                else:
-                    result["shutter_speed"] = f"{val}"
+        # Aperture (FNumber)
+        fnumber = ifd_exif.get(33437)  # FNumber
+        if fnumber is not None:
+            result["aperture"] = round(float(fnumber), 1)
 
-        # Focal length (ratio)
-        fl = named.get("FocalLength")
-        if fl:
-            if hasattr(fl, "numerator"):
-                result["focal_length"] = round(float(fl.numerator) / float(fl.denominator), 1) if fl.denominator else None
-            else:
-                result["focal_length"] = round(float(fl), 1)
+        # Shutter speed (ExposureTime)
+        exposure = ifd_exif.get(33434)  # ExposureTime
+        if exposure is not None:
+            val = float(exposure)
+            if val > 0 and val < 1:
+                result["shutter_speed"] = f"1/{int(round(1 / val))}"
+            elif val >= 1:
+                result["shutter_speed"] = f"{round(val, 1)}"
+
+        # Focal length
+        fl = ifd_exif.get(37386)  # FocalLength
+        if fl is not None:
+            result["focal_length"] = round(float(fl), 1)
 
     except Exception as e:
         print(f"EXIF extraction warning: {e}")
