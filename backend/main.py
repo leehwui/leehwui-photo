@@ -8,10 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy import func as sa_func
 
 from config import settings
 from database import engine, get_db, Base
-from models import Photo, Category, SiteSettings
+from models import Photo, Category, SiteSettings, SiteStats
 from storage import get_storage_client
 from auth import authenticate_user, create_access_token, get_current_user, Token
 
@@ -60,6 +61,73 @@ with next(get_db()) as db:
 
 
 # ---------------------------------------------------------------------------
+# EXIF extraction helper
+# ---------------------------------------------------------------------------
+def _extract_exif(file_data: bytes) -> dict:
+    """Extract basic EXIF metadata from image bytes. Returns a dict of fields."""
+    result: dict = {}
+    try:
+        from PIL import Image
+        from PIL.ExifTags import TAGS
+        from io import BytesIO
+
+        img = Image.open(BytesIO(file_data))
+        result["width"] = img.width
+        result["height"] = img.height
+
+        exif_data = img.getexif()
+        if not exif_data:
+            return result
+
+        # Build a tag-name → value map
+        named: dict = {}
+        for tag_id, value in exif_data.items():
+            tag_name = TAGS.get(tag_id, str(tag_id))
+            named[tag_name] = value
+
+        result["camera_make"] = str(named.get("Make", "")).strip() or None
+        result["camera_model"] = str(named.get("Model", "")).strip() or None
+        result["iso"] = named.get("ISOSpeedRatings") or None
+
+        # Aperture (FNumber is a ratio)
+        fnumber = named.get("FNumber")
+        if fnumber:
+            if hasattr(fnumber, "numerator"):
+                result["aperture"] = round(float(fnumber.numerator) / float(fnumber.denominator), 1) if fnumber.denominator else None
+            else:
+                result["aperture"] = round(float(fnumber), 1)
+
+        # Shutter speed (ExposureTime is a ratio)
+        exposure = named.get("ExposureTime")
+        if exposure:
+            if hasattr(exposure, "numerator"):
+                num, den = exposure.numerator, exposure.denominator
+                if den and num:
+                    if num < den:
+                        result["shutter_speed"] = f"{num}/{den}"
+                    else:
+                        result["shutter_speed"] = f"{round(num / den, 1)}"
+            else:
+                val = float(exposure)
+                if val < 1:
+                    result["shutter_speed"] = f"1/{int(round(1 / val))}"
+                else:
+                    result["shutter_speed"] = f"{val}"
+
+        # Focal length (ratio)
+        fl = named.get("FocalLength")
+        if fl:
+            if hasattr(fl, "numerator"):
+                result["focal_length"] = round(float(fl.numerator) / float(fl.denominator), 1) if fl.denominator else None
+            else:
+                result["focal_length"] = round(float(fl), 1)
+
+    except Exception as e:
+        print(f"EXIF extraction warning: {e}")
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Schemas
 # ---------------------------------------------------------------------------
 class PhotoOut(BaseModel):
@@ -72,6 +140,14 @@ class PhotoOut(BaseModel):
     width: Optional[int] = None
     height: Optional[int] = None
     sort_order: int = 0
+    view_count: int = 0
+    download_count: int = 0
+    camera_make: Optional[str] = None
+    camera_model: Optional[str] = None
+    iso: Optional[int] = None
+    aperture: Optional[float] = None
+    shutter_speed: Optional[str] = None
+    focal_length: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -188,6 +264,9 @@ async def upload_photo(
     file_data = await file.read()
     file_size = len(file_data)
 
+    # Extract EXIF metadata
+    exif = _extract_exif(file_data)
+
     storage.put_object(object_key, file_data, file.content_type or "image/jpeg")
 
     url = f"{settings.public_url}/{object_key}"
@@ -211,6 +290,14 @@ async def upload_photo(
         sort_order=sort_order,
         file_size=file_size,
         content_type=file.content_type,
+        width=exif.get("width"),
+        height=exif.get("height"),
+        camera_make=exif.get("camera_make"),
+        camera_model=exif.get("camera_model"),
+        iso=exif.get("iso"),
+        aperture=exif.get("aperture"),
+        shutter_speed=exif.get("shutter_speed"),
+        focal_length=exif.get("focal_length"),
     )
     db.add(photo)
     db.commit()
@@ -360,6 +447,62 @@ def update_settings(
             db.add(SiteSettings(key=key, value=str(value)))
     db.commit()
     return {"message": "updated"}
+
+
+# ---------------------------------------------------------------------------
+# Public: View / download tracking
+# ---------------------------------------------------------------------------
+@app.post("/api/photos/{photo_id}/view")
+def track_photo_view(photo_id: str, db: Session = Depends(get_db)):
+    photo = db.query(Photo).filter_by(id=photo_id).first()
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    photo.view_count = (photo.view_count or 0) + 1
+    db.commit()
+    return {"view_count": photo.view_count}
+
+
+@app.post("/api/photos/{photo_id}/download")
+def track_photo_download(photo_id: str, db: Session = Depends(get_db)):
+    photo = db.query(Photo).filter_by(id=photo_id).first()
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    photo.download_count = (photo.download_count or 0) + 1
+    db.commit()
+    return {"download_count": photo.download_count}
+
+
+@app.post("/api/site/view")
+def track_site_view(db: Session = Depends(get_db)):
+    row = db.query(SiteStats).filter_by(key="total_views").first()
+    if not row:
+        row = SiteStats(key="total_views", value=1)
+        db.add(row)
+    else:
+        row.value = (row.value or 0) + 1
+    db.commit()
+    return {"total_views": row.value}
+
+
+@app.get("/api/stats")
+def get_stats(
+    _user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    site_views_row = db.query(SiteStats).filter_by(key="total_views").first()
+    total_photos = db.query(Photo).count()
+    total_photo_views = db.query(Photo).with_entities(
+        sa_func.coalesce(sa_func.sum(Photo.view_count), 0)
+    ).scalar()
+    total_downloads = db.query(Photo).with_entities(
+        sa_func.coalesce(sa_func.sum(Photo.download_count), 0)
+    ).scalar()
+    return {
+        "site_views": site_views_row.value if site_views_row else 0,
+        "total_photos": total_photos,
+        "total_photo_views": total_photo_views,
+        "total_downloads": total_downloads,
+    }
 
 
 # ---------------------------------------------------------------------------

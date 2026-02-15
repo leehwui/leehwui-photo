@@ -8,6 +8,7 @@ import {
   getPhotos,
   getCategories,
   getSiteSettings,
+  trackSiteView,
   Photo,
   Category,
   SiteSettings,
@@ -39,6 +40,7 @@ export default function Home() {
   /* Initial load */
   useEffect(() => {
     loadInitial();
+    trackSiteView(); // Fire-and-forget site visit counter
   }, []);
 
   async function loadInitial() {

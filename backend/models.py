@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, Text, DateTime, Integer, Boolean
+from sqlalchemy import Column, String, Text, DateTime, Integer, Boolean, Float
 from sqlalchemy.sql import func
 
 from database import Base
@@ -28,6 +28,19 @@ class Photo(Base):
     height = Column(Integer, nullable=True)
     file_size = Column(Integer, nullable=True, comment="File size in bytes")
     content_type = Column(String(100), nullable=True)
+
+    # View / download counters
+    view_count = Column(Integer, default=0, nullable=False)
+    download_count = Column(Integer, default=0, nullable=False)
+
+    # EXIF metadata
+    camera_make = Column(String(100), nullable=True)
+    camera_model = Column(String(100), nullable=True)
+    iso = Column(Integer, nullable=True)
+    aperture = Column(Float, nullable=True, comment="f-number, e.g. 2.8")
+    shutter_speed = Column(String(50), nullable=True, comment="e.g. 1/250")
+    focal_length = Column(Float, nullable=True, comment="mm")
+
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -48,4 +61,12 @@ class SiteSettings(Base):
 
     key = Column(String(100), primary_key=True)
     value = Column(Text, nullable=True)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class SiteStats(Base):
+    __tablename__ = "site_stats"
+
+    key = Column(String(100), primary_key=True)
+    value = Column(Integer, default=0, nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

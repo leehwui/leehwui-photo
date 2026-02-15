@@ -18,9 +18,11 @@ import {
   deleteCategory,
   updateCategory,
   reorderCategories,
+  getSiteStats,
   Photo,
   Category,
   SiteSettings,
+  SiteStatsData,
 } from "@/lib/api";
 
 /* ── Preview item for staged files ── */
@@ -39,6 +41,7 @@ export default function AdminPage() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
+  const [siteStats, setSiteStats] = useState<SiteStatsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<
     "photos" | "categories" | "settings"
@@ -101,14 +104,16 @@ export default function AdminPage() {
   async function loadData() {
     setLoading(true);
     try {
-      const [p, c, s] = await Promise.all([
+      const [p, c, s, stats] = await Promise.all([
         getAllPhotos(),
         getCategories(),
         getSiteSettings(),
+        getSiteStats(),
       ]);
       setPhotos(p);
       setCategories(c);
       setSiteSettings(s);
+      setSiteStats(stats);
     } catch {
       logout();
       setAuthed(false);
@@ -528,6 +533,30 @@ export default function AdminPage() {
         {/* ──── Photos Tab ──── */}
         {activeTab === "photos" && (
           <>
+            {/* Stats Dashboard */}
+            {siteStats && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                {[
+                  { label: "Site Views", value: siteStats.site_views },
+                  { label: "Photos", value: siteStats.total_photos },
+                  { label: "Photo Views", value: siteStats.total_photo_views },
+                  { label: "Downloads", value: siteStats.total_downloads },
+                ].map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="border border-neutral-200 p-4 text-center"
+                  >
+                    <p className="text-2xl font-light text-neutral-800">
+                      {stat.value.toLocaleString()}
+                    </p>
+                    <p className="text-[10px] tracking-[0.15em] uppercase text-neutral-400 mt-1">
+                      {stat.label}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Upload Section */}
             <section className="border border-neutral-200 p-6 mb-8">
               <h2 className="text-xs tracking-[0.2em] uppercase text-neutral-900 mb-6">
@@ -741,7 +770,7 @@ export default function AdminPage() {
                       )
                       .map((photo) => (
                         <div key={photo.id} className="group relative">
-                          <div className="aspect-square overflow-hidden bg-neutral-100">
+                          <div className="aspect-square overflow-hidden bg-neutral-100 relative">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={photo.url}
@@ -749,6 +778,17 @@ export default function AdminPage() {
                               className="w-full h-full object-cover"
                               loading="lazy"
                             />
+                            {/* Stats overlay — always visible */}
+                            <div className="absolute top-0 left-0 right-0 flex items-center gap-2 px-2 py-1.5 bg-gradient-to-b from-black/50 to-transparent">
+                              <span className="text-white/90 text-[10px] flex items-center gap-0.5" title="Views">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                {photo.view_count || 0}
+                              </span>
+                              <span className="text-white/90 text-[10px] flex items-center gap-0.5" title="Downloads">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
+                                {photo.download_count || 0}
+                              </span>
+                            </div>
                           </div>
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-2">
                             <button

@@ -55,6 +55,14 @@ export interface Photo {
   width?: number;
   height?: number;
   sort_order: number;
+  view_count: number;
+  download_count: number;
+  camera_make?: string;
+  camera_model?: string;
+  iso?: number;
+  aperture?: number;
+  shutter_speed?: string;
+  focal_length?: number;
 }
 
 export interface Category {
@@ -193,6 +201,45 @@ export async function updateCategory(
 
 export async function reorderCategories(ids: string[]): Promise<void> {
   await api.put("/api/categories/reorder", { ids });
+}
+
+// ---------------------------------------------------------------------------
+// View / download tracking
+// ---------------------------------------------------------------------------
+export async function trackPhotoView(photoId: string): Promise<void> {
+  try {
+    await api.post(`/api/photos/${photoId}/view`);
+  } catch {
+    // Fire-and-forget — don't break the UI if tracking fails
+  }
+}
+
+export async function trackPhotoDownload(photoId: string): Promise<void> {
+  try {
+    await api.post(`/api/photos/${photoId}/download`);
+  } catch {
+    // Fire-and-forget
+  }
+}
+
+export async function trackSiteView(): Promise<void> {
+  try {
+    await api.post("/api/site/view");
+  } catch {
+    // Fire-and-forget
+  }
+}
+
+export interface SiteStatsData {
+  site_views: number;
+  total_photos: number;
+  total_photo_views: number;
+  total_downloads: number;
+}
+
+export async function getSiteStats(): Promise<SiteStatsData> {
+  const res = await api.get("/api/stats");
+  return res.data;
 }
 
 export default api;
