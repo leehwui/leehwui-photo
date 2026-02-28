@@ -14,6 +14,7 @@ import {
   deletePhoto,
   updatePhoto,
   updateSettings,
+  uploadAboutPhoto,
   createCategory,
   deleteCategory,
   updateCategory,
@@ -1256,6 +1257,118 @@ export default function AdminPage() {
                 {t("admin.saveSettings")}
               </button>
             </form>
+
+            {/* ── About Page Section ── */}
+            <div className="mt-10 pt-10 border-t border-neutral-200">
+              <h2 className="text-xs tracking-[0.2em] uppercase text-neutral-900 mb-6">
+                {t("admin.aboutPage")}
+              </h2>
+
+              {/* About photo upload */}
+              <div className="mb-6">
+                <label className={labelClass}>{t("admin.aboutPhoto")}</label>
+                <div className="flex items-start gap-4">
+                  {siteSettings.about_photo_url && (
+                    <div className="w-24 h-32 flex-shrink-0 bg-neutral-100 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={siteSettings.about_photo_url}
+                        alt="About"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="about-photo-input"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          const result = await uploadAboutPhoto(file);
+                          setSiteSettings({
+                            ...siteSettings,
+                            about_photo_url: result.url,
+                          });
+                        } catch (err) {
+                          console.error("About photo upload failed:", err);
+                          alert(t("admin.uploadFailed"));
+                        }
+                        e.target.value = "";
+                      }}
+                    />
+                    <label
+                      htmlFor="about-photo-input"
+                      className="inline-block px-4 py-2 border border-neutral-200 text-xs tracking-wide text-neutral-600 hover:border-neutral-400 transition-colors cursor-pointer"
+                    >
+                      {siteSettings.about_photo_url
+                        ? t("admin.changePhoto")
+                        : t("admin.aboutPhotoHint")}
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* About bio EN */}
+              <div className="mb-5 max-w-lg">
+                <label className={labelClass}>{t("admin.aboutBioEn")}</label>
+                <textarea
+                  value={siteSettings.about_bio_en}
+                  onChange={(e) =>
+                    setSiteSettings({
+                      ...siteSettings,
+                      about_bio_en: e.target.value,
+                    })
+                  }
+                  className={inputClass + " min-h-[120px] resize-y"}
+                  placeholder={t("admin.aboutBioHint")}
+                  rows={5}
+                />
+              </div>
+
+              {/* About bio ZH */}
+              <div className="mb-5 max-w-lg">
+                <label className={labelClass}>{t("admin.aboutBioZh")}</label>
+                <textarea
+                  value={siteSettings.about_bio_zh}
+                  onChange={(e) =>
+                    setSiteSettings({
+                      ...siteSettings,
+                      about_bio_zh: e.target.value,
+                    })
+                  }
+                  className={inputClass + " min-h-[120px] resize-y"}
+                  placeholder={t("admin.aboutBioHint")}
+                  rows={5}
+                />
+              </div>
+
+              <p className="text-xs text-neutral-400 mb-4">
+                {t("admin.aboutBioHint")}
+              </p>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await updateSettings({
+                      about_bio_en: siteSettings.about_bio_en,
+                      about_bio_zh: siteSettings.about_bio_zh,
+                    });
+                    alert(t("admin.settingsSaved"));
+                  } catch (err) {
+                    console.error("Failed to save about settings:", err);
+                    alert(t("admin.settingsFailed"));
+                  }
+                }}
+                className="px-6 py-2 bg-neutral-900 text-white text-xs tracking-[0.15em] uppercase hover:bg-neutral-800 transition-colors cursor-pointer"
+              >
+                {t("admin.saveSettings")}
+              </button>
+            </div>
           </section>
         )}
       </main>

@@ -16,15 +16,26 @@ const DEFAULT_SETTINGS: SiteSettings = {
   bilibili_url: "",
   douyin_url: "",
   footer_text: "",
+  about_photo_url: "",
+  about_bio_en: "",
+  about_bio_zh: "",
 };
 
 export default function AboutPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
 
   useEffect(() => {
     getSiteSettings().then(setSettings).catch(console.error);
   }, []);
+
+  // Use DB bio if set, otherwise fall back to i18n default
+  const bio =
+    (locale === "zh" ? settings.about_bio_zh : settings.about_bio_en) ||
+    t("about.bio");
+
+  // Use DB photo if set, otherwise fall back to local static file
+  const photoUrl = settings.about_photo_url || "/about-photo.jpg";
 
   const specialties = [
     { key: "about.street" as const, icon: "🏙️" },
@@ -44,7 +55,7 @@ export default function AboutPage() {
           <div className="aspect-[3/4] overflow-hidden bg-neutral-100">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/about-photo.jpg"
+              src={photoUrl}
               alt="Photographer"
               className="w-full h-full object-cover"
             />
@@ -56,8 +67,8 @@ export default function AboutPage() {
               {t("about.title")}
             </h1>
 
-            <p className="text-sm leading-7 text-neutral-600 font-light mb-10">
-              {t("about.bio")}
+            <p className="text-sm leading-7 text-neutral-600 font-light mb-10 whitespace-pre-line">
+              {bio}
             </p>
 
             {/* Specialties */}

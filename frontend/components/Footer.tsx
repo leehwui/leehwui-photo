@@ -23,7 +23,7 @@ export default function Footer({ settings }: FooterProps) {
         {/* Copyright */}
         <p className="text-center text-xs text-neutral-300 tracking-wide">
           {settings.site_title || "TANGERINE"} &copy;{" "}
-          {new Date().getFullYear()}
+          <span suppressHydrationWarning>{new Date().getFullYear()}</span>
         </p>
       </div>
     </footer>

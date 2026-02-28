@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useCallback, useSyncExternalStore, ReactNode } from "react";
 
 export type Locale = "en" | "zh";
 
@@ -40,6 +40,13 @@ const dictionaries = {
     // Admin
     "admin.footerText": "Footer Text",
     "admin.footerTextHint": "Custom footer text, e.g. ICP number",
+    "admin.aboutPage": "About Page",
+    "admin.aboutPhoto": "About Photo",
+    "admin.aboutPhotoHint": "Upload a photo for the About page",
+    "admin.changePhoto": "Change Photo",
+    "admin.aboutBioEn": "Bio (English)",
+    "admin.aboutBioZh": "Bio (中文)",
+    "admin.aboutBioHint": "Leave empty to use the default text",
 
     // Admin - Login
     "admin.title": "Administration",
@@ -153,6 +160,13 @@ const dictionaries = {
     // Admin
     "admin.footerText": "页脚文本",
     "admin.footerTextHint": "自定义页脚文本，如 ICP 备案号",
+    "admin.aboutPage": "关于页面",
+    "admin.aboutPhoto": "关于页照片",
+    "admin.aboutPhotoHint": "上传关于页面的照片",
+    "admin.changePhoto": "更换照片",
+    "admin.aboutBioEn": "简介（English）",
+    "admin.aboutBioZh": "简介（中文）",
+    "admin.aboutBioHint": "留空则使用默认文本",
 
     // Admin - Login
     "admin.title": "管理后台",
@@ -248,23 +262,53 @@ const I18nContext = createContext<I18nContextType>({
   t: (key) => key,
 });
 
-export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("locale") as Locale | null;
-      if (saved === "en" || saved === "zh") return saved;
-      // detect browser language
-      const browserLang = navigator.language.toLowerCase();
-      if (browserLang.startsWith("zh")) return "zh";
+// ─── Locale store (external store for useSyncExternalStore) ───
+let _locale: Locale = "en";
+const _listeners = new Set<() => void>();
+
+function _getLocaleSnapshot(): Locale {
+  return _locale;
+}
+
+function _getLocaleServerSnapshot(): Locale {
+  return "en"; // always "en" on server for consistent SSR
+}
+
+function _subscribeLocale(cb: () => void) {
+  _listeners.add(cb);
+  return () => _listeners.delete(cb);
+}
+
+function _setLocale(l: Locale) {
+  _locale = l;
+  if (typeof window !== "undefined") {
+    localStorage.setItem("locale", l);
+  }
+  _listeners.forEach((cb) => cb());
+}
+
+// Read saved locale from localStorage on client module load
+if (typeof window !== "undefined") {
+  const saved = localStorage.getItem("locale") as Locale | null;
+  if (saved === "en" || saved === "zh") {
+    _locale = saved;
+  } else {
+    const browserLang = navigator.language.toLowerCase();
+    if (browserLang.startsWith("zh")) {
+      _locale = "zh";
     }
-    return "en";
-  });
+  }
+}
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const locale = useSyncExternalStore(
+    _subscribeLocale,
+    _getLocaleSnapshot,
+    _getLocaleServerSnapshot
+  );
 
   const setLocale = useCallback((l: Locale) => {
-    setLocaleState(l);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("locale", l);
-    }
+    _setLocale(l);
   }, []);
 
   const t = useCallback(

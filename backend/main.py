@@ -51,6 +51,9 @@ def _seed(db: Session):
         "bilibili_url": "",
         "douyin_url": "",
         "footer_text": "",
+        "about_photo_url": "",
+        "about_bio_en": "",
+        "about_bio_zh": "",
     }
     for k, v in defaults.items():
         if not db.query(SiteSettings).filter_by(key=k).first():
@@ -183,6 +186,9 @@ class SiteSettingsOut(BaseModel):
     bilibili_url: str = ""
     douyin_url: str = ""
     footer_text: str = ""
+    about_photo_url: str = ""
+    about_bio_en: str = ""
+    about_bio_zh: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -439,6 +445,32 @@ def update_settings(
             db.add(SiteSettings(key=key, value=str(value)))
     db.commit()
     return {"message": "updated"}
+
+
+@app.post("/api/settings/about-photo")
+async def upload_about_photo(
+    file: UploadFile = File(...),
+    _user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Upload a photo for the About page. Stored as 'about/photo.<ext>' in object storage."""
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "jpg"
+    object_key = f"about/photo.{ext}"
+
+    file_data = await file.read()
+    storage.put_object(object_key, file_data, file.content_type or "image/jpeg")
+
+    url = f"{settings.public_url}/{object_key}"
+
+    # Persist the URL in SiteSettings
+    row = db.query(SiteSettings).filter_by(key="about_photo_url").first()
+    if row:
+        row.value = url
+    else:
+        db.add(SiteSettings(key="about_photo_url", value=url))
+    db.commit()
+
+    return {"url": url}
 
 
 # ---------------------------------------------------------------------------

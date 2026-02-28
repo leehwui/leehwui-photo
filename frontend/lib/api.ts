@@ -82,6 +82,9 @@ export interface SiteSettings {
   bilibili_url: string;
   douyin_url: string;
   footer_text: string;
+  about_photo_url: string;
+  about_bio_en: string;
+  about_bio_zh: string;
 }
 
 export async function login(
@@ -175,6 +178,13 @@ export async function updateSettings(
   settings: Partial<SiteSettings>
 ): Promise<void> {
   await api.put("/api/settings", settings);
+}
+
+export async function uploadAboutPhoto(file: File): Promise<{ url: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await api.post("/api/settings/about-photo", formData);
+  return res.data;
 }
 
 export async function createCategory(

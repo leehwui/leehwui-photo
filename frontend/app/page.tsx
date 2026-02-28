@@ -27,6 +27,9 @@ const DEFAULT_SETTINGS: SiteSettings = {
   bilibili_url: "",
   douyin_url: "",
   footer_text: "",
+  about_photo_url: "",
+  about_bio_en: "",
+  about_bio_zh: "",
 };
 
 export default function Home() {
