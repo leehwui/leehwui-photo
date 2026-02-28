@@ -50,6 +50,7 @@ def _seed(db: Session):
         "xiaohongshu_url": "",
         "bilibili_url": "",
         "douyin_url": "",
+        "footer_text": "",
     }
     for k, v in defaults.items():
         if not db.query(SiteSettings).filter_by(key=k).first():
@@ -181,6 +182,7 @@ class SiteSettingsOut(BaseModel):
     xiaohongshu_url: str = ""
     bilibili_url: str = ""
     douyin_url: str = ""
+    footer_text: str = ""
 
 
 # ---------------------------------------------------------------------------

@@ -81,6 +81,7 @@ export interface SiteSettings {
   xiaohongshu_url: string;
   bilibili_url: string;
   douyin_url: string;
+  footer_text: string;
 }
 
 export async function login(

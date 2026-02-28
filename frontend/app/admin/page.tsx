@@ -1231,6 +1231,24 @@ export default function AdminPage() {
                 />
               </div>
 
+              <hr className="border-neutral-100" />
+
+              <div>
+                <label className={labelClass}>{t("admin.footerText")}</label>
+                <input
+                  type="text"
+                  value={siteSettings.footer_text}
+                  onChange={(e) =>
+                    setSiteSettings({
+                      ...siteSettings,
+                      footer_text: e.target.value,
+                    })
+                  }
+                  className={inputClass}
+                  placeholder={t("admin.footerTextHint")}
+                />
+              </div>
+
               <button
                 type="submit"
                 className="px-6 py-2 bg-neutral-900 text-white text-xs tracking-[0.15em] uppercase hover:bg-neutral-800 transition-colors cursor-pointer"

@@ -6,14 +6,40 @@ export type Locale = "en" | "zh";
 
 const dictionaries = {
   en: {
+    // Nav
+    "nav.gallery": "Gallery",
+    "nav.about": "About",
+    "nav.contact": "Contact",
+
     // Gallery
     "gallery.showAll": "Show All",
     "gallery.empty": "No photographs to display.",
     "gallery.close": "Close",
 
+    // About
+    "about.title": "About Me",
+    "about.bio": "I'm a photographer with a passion for capturing the world through my lens. My work spans across street photography, city skylines, landscapes, sports & events, and portraiture. Each frame tells a story — whether it's the energy of a bustling street, the serenity of a mountain ridge, or the decisive moment in a sporting event.",
+    "about.specialties": "Specialties",
+    "about.street": "Street Photography",
+    "about.skyline": "City Skyline",
+    "about.landscape": "Landscape",
+    "about.sports": "Sports & Events",
+    "about.portraiture": "Portraiture",
+
+    // Contact
+    "contact.title": "Get in Touch",
+    "contact.description": "Feel free to reach out through any of the platforms below.",
+    "contact.email": "Email",
+    "contact.wechat": "WeChat",
+    "contact.social": "Social Media",
+
     // Footer
     "footer.wechat": "WeChat",
     "footer.contact": "Contact",
+
+    // Admin
+    "admin.footerText": "Footer Text",
+    "admin.footerTextHint": "Custom footer text, e.g. ICP number",
 
     // Admin - Login
     "admin.title": "Administration",
@@ -93,14 +119,40 @@ const dictionaries = {
     "admin.settingsFailed": "Failed to save settings.",
   },
   zh: {
+    // Nav
+    "nav.gallery": "作品",
+    "nav.about": "关于",
+    "nav.contact": "联系",
+
     // Gallery
     "gallery.showAll": "全部",
     "gallery.empty": "暂无照片",
     "gallery.close": "关闭",
 
+    // About
+    "about.title": "关于我",
+    "about.bio": "我是一名热爱用镜头记录世界的摄影师。我的作品涵盖街头摄影、城市天际线、风光、体育赛事以及人像等多个领域。每一帧画面都在讲述一个故事——无论是熙攘街头的活力、山脊间的宁静，还是赛场上的决定性瞬间。",
+    "about.specialties": "擅长领域",
+    "about.street": "街头摄影",
+    "about.skyline": "城市天际线",
+    "about.landscape": "风光",
+    "about.sports": "体育赛事",
+    "about.portraiture": "人像",
+
+    // Contact
+    "contact.title": "联系方式",
+    "contact.description": "欢迎通过以下任何平台与我联系。",
+    "contact.email": "邮箱",
+    "contact.wechat": "微信",
+    "contact.social": "社交媒体",
+
     // Footer
     "footer.wechat": "微信",
     "footer.contact": "联系",
+
+    // Admin
+    "admin.footerText": "页脚文本",
+    "admin.footerTextHint": "自定义页脚文本，如 ICP 备案号",
 
     // Admin - Login
     "admin.title": "管理后台",

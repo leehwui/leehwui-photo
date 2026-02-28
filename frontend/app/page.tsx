@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Footer from "@/components/Footer";
+import Navbar from "@/components/Navbar";
 import GalleryGrid from "@/components/GalleryGrid";
-import { useI18n, LanguageSwitcher } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 import {
   getPhotos,
   getCategories,
@@ -25,6 +26,7 @@ const DEFAULT_SETTINGS: SiteSettings = {
   xiaohongshu_url: "",
   bilibili_url: "",
   douyin_url: "",
+  footer_text: "",
 };
 
 export default function Home() {
@@ -100,25 +102,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Language switcher */}
-      <div className="absolute top-6 right-8 z-10">
-        <LanguageSwitcher />
-      </div>
-
-      {/* Header */}
-      <header className="pt-16 pb-12 text-center px-6">
-        <h1 className="text-2xl md:text-3xl tracking-[0.35em] uppercase font-light text-neutral-800">
-          {settings.site_title}
-        </h1>
-        {settings.site_subtitle && (
-          <p className="mt-3 text-xs tracking-[0.2em] uppercase text-neutral-400 font-light">
-            {settings.site_subtitle}
-          </p>
-        )}
-      </header>
+      {/* Navigation */}
+      <Navbar siteTitle={settings.site_title} />
 
       {/* Category Filters */}
-      <nav className="text-center px-6 mb-12">
+      <nav className="text-center px-6 pt-10 mb-12">
         <div className="flex items-center justify-center gap-6 flex-wrap">
           <button
             onClick={() => handleCategoryChange(null)}
